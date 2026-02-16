@@ -11,7 +11,7 @@ Portable NI FRC 2026 Driver Station bundle for Linux with a one-command installe
 ## Important
 
 - The full working bundle is large (~6 GB) and is **not committed to git**.
-- Put the bundle archive in a GitHub release asset.
+- GitHub release uploads are capped at 2 GB per file. Upload the split `.part-###` files.
 - Licensing for NI/FRC software is your responsibility.
 
 ## Maintainer Workflow (You)
@@ -20,10 +20,12 @@ Portable NI FRC 2026 Driver Station bundle for Linux with a one-command installe
    - `~/Downloads/ni-frc-2026-linux-full-...`
 2. In this repo, create archive:
    - `./scripts/make-release-archive.sh`
-3. Upload the generated file in `dist/` to a GitHub release (tag `v1` or newer).
+3. Upload the generated split files in `dist/` to a GitHub release (tag `v1` or newer).
 
 Asset name should look like:
-- `ni-frc-2026-linux-full-YYYYMMDD-HHMMSS.tar.zst`
+- `ni-frc-2026-linux-full-YYYYMMDD-HHMMSS.tar.zst.part-000`
+- `ni-frc-2026-linux-full-YYYYMMDD-HHMMSS.tar.zst.part-001`
+- `ni-frc-2026-linux-full-YYYYMMDD-HHMMSS.tar.zst.part-002`
 
 ## Receiver One-Command Install
 
@@ -32,6 +34,8 @@ After you push this repo and upload a release asset:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | bash -s -- --repo OWNER/REPO
 ```
+
+The installer automatically detects split assets, downloads all parts, reassembles, and installs.
 
 Example:
 

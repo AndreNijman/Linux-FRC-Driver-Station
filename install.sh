@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_ASSET_PATTERN='ni-frc-2026-linux-full.*\.tar\.zst'
+DEFAULT_ASSET_PATTERN='ni-frc-2026-linux-full.*\.tar\.zst(\.part-[0-9]{3})?$'
 
 usage() {
   cat <<USAGE
@@ -13,6 +13,7 @@ Usage:
 
 Examples:
   $0 --bundle-file ./dist/ni-frc-2026-linux-full.tar.zst
+  $0 --bundle-file ./dist/ni-frc-2026-linux-full.tar.zst.part-000
   $0 --repo yourname/FRC-2026-Linux-Portable
   curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | bash -s -- --repo OWNER/REPO
 USAGE
@@ -77,7 +78,18 @@ trap cleanup EXIT
 ARCHIVE_PATH=""
 
 if [[ -n "$BUNDLE_FILE" ]]; then
-  ARCHIVE_PATH="$BUNDLE_FILE"
+  if [[ ! -e "$BUNDLE_FILE" ]]; then
+    echo "Bundle file not found: $BUNDLE_FILE" >&2
+    exit 1
+  fi
+  if [[ "$BUNDLE_FILE" =~ \.part-[0-9]{3}$ ]]; then
+    STEM="${BUNDLE_FILE%.part-*}"
+    ARCHIVE_PATH="$TMP_DIR/bundle.tar.zst"
+    echo "Reassembling local split parts from: ${STEM}.part-###"
+    cat "${STEM}.part-"[0-9][0-9][0-9] > "$ARCHIVE_PATH"
+  else
+    ARCHIVE_PATH="$BUNDLE_FILE"
+  fi
 elif [[ -n "$BUNDLE_URL" ]]; then
   ARCHIVE_PATH="$TMP_DIR/bundle.tar.zst"
   echo "Downloading bundle from URL..."
@@ -85,15 +97,38 @@ elif [[ -n "$BUNDLE_URL" ]]; then
 else
   API_URL="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
   echo "Resolving latest release asset from ${GITHUB_REPO}..."
-  ASSET_URL="$(curl -fsSL "$API_URL" | grep -Eo 'https://[^\"]+' | grep -E "$ASSET_PATTERN" | head -n1 || true)"
-  if [[ -z "$ASSET_URL" ]]; then
+  RELEASE_JSON="$TMP_DIR/release.json"
+  curl -fsSL "$API_URL" -o "$RELEASE_JSON"
+  mapfile -t ASSET_URLS < <(
+    sed -n 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RELEASE_JSON" | \
+      grep -E "$ASSET_PATTERN" || true
+  )
+  if [[ "${#ASSET_URLS[@]}" -eq 0 ]]; then
     echo "Could not find release asset matching pattern: $ASSET_PATTERN" >&2
-    echo "Tip: publish an asset like ni-frc-2026-linux-full-YYYYMMDD-HHMMSS.tar.zst" >&2
+    echo "Tip: publish assets like ni-frc-2026-linux-full-YYYYMMDD-HHMMSS.tar.zst.part-000" >&2
     exit 1
   fi
+
   ARCHIVE_PATH="$TMP_DIR/bundle.tar.zst"
-  echo "Downloading ${ASSET_URL} ..."
-  curl -fL "$ASSET_URL" -o "$ARCHIVE_PATH"
+  mapfile -t PART_URLS < <(printf '%s\n' "${ASSET_URLS[@]}" | grep -E '\.part-[0-9]{3}$' || true)
+  if [[ "${#PART_URLS[@]}" -gt 0 ]]; then
+    # If multiple split sets exist, pick the lexicographically newest stem.
+    mapfile -t STEMS < <(printf '%s\n' "${PART_URLS[@]}" | sed -E 's/\.part-[0-9]{3}$//' | sort -u)
+    SELECTED_STEM="$(printf '%s\n' "${STEMS[@]}" | sort | tail -n1)"
+    mapfile -t SELECTED_PARTS < <(printf '%s\n' "${PART_URLS[@]}" | grep -F "${SELECTED_STEM}.part-" | sort)
+    echo "Downloading split bundle parts (${#SELECTED_PARTS[@]})..."
+    mkdir -p "$TMP_DIR/parts"
+    for url in "${SELECTED_PARTS[@]}"; do
+      file="$TMP_DIR/parts/$(basename "$url")"
+      echo "  - $(basename "$url")"
+      curl -fL "$url" -o "$file"
+    done
+    cat "$TMP_DIR/parts"/"$(basename "$SELECTED_STEM").part-"[0-9][0-9][0-9] > "$ARCHIVE_PATH"
+  else
+    ASSET_URL="$(printf '%s\n' "${ASSET_URLS[@]}" | sort | tail -n1)"
+    echo "Downloading ${ASSET_URL} ..."
+    curl -fL "$ASSET_URL" -o "$ARCHIVE_PATH"
+  fi
 fi
 
 if [[ ! -f "$ARCHIVE_PATH" ]]; then

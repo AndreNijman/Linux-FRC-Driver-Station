@@ -1,0 +1,6 @@
+# Large release artifacts
+/dist/*
+
+# Temp files
+*.tmp
+*.swp

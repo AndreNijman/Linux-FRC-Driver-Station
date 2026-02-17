@@ -14,6 +14,8 @@ curl -fsSL https://raw.githubusercontent.com/AndreNijman/Linux-FRC-Driver-Statio
 curl -fsSL https://raw.githubusercontent.com/AndreNijman/Linux-FRC-Driver-Station/main/install-macos.sh | bash -s -- --repo AndreNijman/Linux-FRC-Driver-Station
 ```
 
+Run installers as your normal user (no `sudo`). If you must run under `sudo`, pass `--target-home "$HOME"` so launchers install into your user home.
+
 The installer automatically downloads the latest release assets, reassembles split parts, restores the Wine prefix, and installs launchers.
 
 ## What Gets Installed

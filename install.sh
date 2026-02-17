@@ -24,6 +24,7 @@ BUNDLE_URL=""
 GITHUB_REPO=""
 ASSET_PATTERN="$DEFAULT_ASSET_PATTERN"
 TARGET_HOME="${HOME}"
+TARGET_HOME_EXPLICIT=0
 SKIP_UDEV=0
 
 while [[ $# -gt 0 ]]; do
@@ -37,7 +38,7 @@ while [[ $# -gt 0 ]]; do
     --asset-pattern)
       ASSET_PATTERN="$2"; shift 2 ;;
     --target-home)
-      TARGET_HOME="$2"; shift 2 ;;
+      TARGET_HOME="$2"; TARGET_HOME_EXPLICIT=1; shift 2 ;;
     --skip-udev)
       SKIP_UDEV=1; shift ;;
     -h|--help)
@@ -70,6 +71,53 @@ need_cmd tar
 need_cmd rsync
 need_cmd curl
 need_cmd zstd
+
+resolve_user_home() {
+  local user="$1"
+  local entry=""
+  local home=""
+  local line=""
+  local expanded=""
+
+  if command -v getent >/dev/null 2>&1; then
+    entry="$(getent passwd "$user" 2>/dev/null || true)"
+    if [[ -n "$entry" ]]; then
+      IFS=':' read -r _ _ _ _ _ home _ <<< "$entry"
+      if [[ -n "$home" ]]; then
+        printf '%s\n' "$home"
+        return 0
+      fi
+    fi
+  fi
+
+  if command -v dscl >/dev/null 2>&1; then
+    line="$(dscl . -read "/Users/${user}" NFSHomeDirectory 2>/dev/null || true)"
+    if [[ "$line" == NFSHomeDirectory:* ]]; then
+      home="${line#NFSHomeDirectory: }"
+      if [[ -n "$home" ]]; then
+        printf '%s\n' "$home"
+        return 0
+      fi
+    fi
+  fi
+
+  expanded="$(eval "printf '%s' ~${user}" 2>/dev/null || true)"
+  if [[ -n "$expanded" && "$expanded" != "~${user}" ]]; then
+    printf '%s\n' "$expanded"
+    return 0
+  fi
+
+  return 1
+}
+
+if [[ "$TARGET_HOME_EXPLICIT" -eq 0 && "${EUID}" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  if SUDO_HOME="$(resolve_user_home "${SUDO_USER}")" && [[ -d "$SUDO_HOME" ]]; then
+    TARGET_HOME="$SUDO_HOME"
+    echo "Detected sudo execution; installing into ${TARGET_HOME} (SUDO_USER=${SUDO_USER})."
+  else
+    echo "Warning: detected sudo but could not resolve home for ${SUDO_USER}; using ${TARGET_HOME}." >&2
+  fi
+fi
 
 ensure_wine() {
   if command -v wine >/dev/null 2>&1; then

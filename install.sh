@@ -71,6 +71,50 @@ need_cmd rsync
 need_cmd curl
 need_cmd zstd
 
+ensure_wine() {
+  if command -v wine >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Wine not found. Attempting Linux install..."
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    echo "Automatic Wine install is only supported on Linux in install.sh." >&2
+    exit 1
+  fi
+
+  if [[ "${EUID}" -ne 0 ]] && ! command -v sudo >/dev/null 2>&1; then
+    echo "Missing sudo; run as root or install Wine manually." >&2
+    exit 1
+  fi
+
+  if [[ "${EUID}" -eq 0 ]]; then
+    SUDO_CMD=()
+  else
+    SUDO_CMD=(sudo)
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
+    if command -v dpkg >/dev/null 2>&1 && ! dpkg --print-foreign-architectures | grep -qx 'i386'; then
+      "${SUDO_CMD[@]}" dpkg --add-architecture i386
+    fi
+    "${SUDO_CMD[@]}" apt-get update
+    "${SUDO_CMD[@]}" apt-get install -y --install-recommends wine64 wine32
+  elif command -v dnf >/dev/null 2>&1; then
+    "${SUDO_CMD[@]}" dnf install -y wine
+  elif command -v pacman >/dev/null 2>&1; then
+    "${SUDO_CMD[@]}" pacman -Sy --noconfirm wine
+  elif command -v zypper >/dev/null 2>&1; then
+    "${SUDO_CMD[@]}" zypper --non-interactive install wine
+  else
+    echo "Unsupported package manager; install Wine manually." >&2
+    exit 1
+  fi
+
+  command -v wine >/dev/null 2>&1 || { echo "Wine install failed." >&2; exit 1; }
+}
+
+ensure_wine
+
 TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT

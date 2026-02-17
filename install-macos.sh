@@ -80,7 +80,24 @@ need_cmd head
 need_cmd find
 need_cmd dirname
 need_cmd basename
-need_cmd wine
+
+ensure_wine() {
+  if command -v wine >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Wine not found. Attempting macOS install via Homebrew..."
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "Homebrew is required to install Wine automatically." >&2
+    echo "Install Homebrew first, then rerun this script." >&2
+    exit 1
+  fi
+
+  brew install --cask wine-stable
+  command -v wine >/dev/null 2>&1 || { echo "Wine install failed." >&2; exit 1; }
+}
+
+ensure_wine
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ni-frc-2026-macos.XXXXXX")"
 cleanup() { rm -rf "$TMP_DIR"; }

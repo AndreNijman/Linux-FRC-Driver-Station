@@ -28,13 +28,13 @@ The installer automatically downloads the latest release assets, reassembles spl
 ### Linux
 
 - Linux x86_64
-- Wine (with 32-bit support)
+- Wine (installer will attempt automatic setup when missing)
 - `curl`, `tar`, `zstd`, `rsync`
 
 ### macOS
 
 - macOS (Darwin)
-- Wine available as `wine` in `PATH`
+- Wine available as `wine` in `PATH` (installer will attempt setup via Homebrew when missing)
 - `curl`, `tar`, `zstd`, `rsync`
 - On Apple Silicon, use a Wine setup compatible with x86_64 tooling.
 

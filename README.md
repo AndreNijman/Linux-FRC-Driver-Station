@@ -35,7 +35,7 @@ The installer automatically downloads the latest release assets, reassembles spl
 
 - macOS (Darwin)
 - Wine available as `wine` in `PATH` (installer will attempt setup via Homebrew when missing)
-- `curl`, `tar`, `zstd`, `rsync`
+- `curl`, `tar`, `zstd`, `rsync` (`zstd` installer via Homebrew is attempted when missing)
 - On Apple Silicon, use a Wine setup compatible with x86_64 tooling.
 
 ## If You Download Release Files Manually

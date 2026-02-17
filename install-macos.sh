@@ -72,7 +72,6 @@ need_cmd() {
 need_cmd tar
 need_cmd rsync
 need_cmd curl
-need_cmd zstd
 need_cmd sed
 need_cmd grep
 need_cmd sort
@@ -97,7 +96,24 @@ ensure_wine() {
   command -v wine >/dev/null 2>&1 || { echo "Wine install failed." >&2; exit 1; }
 }
 
+ensure_zstd() {
+  if command -v zstd >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "zstd not found. Attempting install via Homebrew..."
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "Homebrew is required to install zstd automatically." >&2
+    echo "Install Homebrew, then run: brew install zstd" >&2
+    exit 1
+  fi
+
+  brew install zstd
+  command -v zstd >/dev/null 2>&1 || { echo "zstd install failed." >&2; exit 1; }
+}
+
 ensure_wine
+ensure_zstd
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ni-frc-2026-macos.XXXXXX")"
 cleanup() { rm -rf "$TMP_DIR"; }

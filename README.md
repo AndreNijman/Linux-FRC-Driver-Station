@@ -56,7 +56,17 @@ macOS:
 
 The installer will automatically stitch together `.part-###` files.
 
-## Launch Driver Station
+## Launch Driver Station After Install
+
+After running the install command, start Driver Station with:
+
+### Linux
+
+```bash
+~/.local/bin/ni-frc-2026-driver-station
+```
+
+### macOS
 
 ```bash
 ~/.local/bin/ni-frc-2026-driver-station
